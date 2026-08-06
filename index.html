@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F7F4F0">
+<title>오늘의 식단</title>
+<style>
+  :root{
+    --paper:#F7F4F0; --paper-2:#FFFDFB; --ink:#2A2028; --ink-60:#6B6169; --ink-30:#A9A1A7;
+    --line:#E3DCD8; --plum:#7A5C82; --rosin:#BE8047; --sage:#5F8B84; --rose:#C4636F; --r:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    font-size:15px;line-height:1.45;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 8px) env(safe-area-inset-left);
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:480px;margin:0 auto;padding:14px 16px 28px}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:16px}
+  .dateline{display:flex;align-items:center;gap:8px}
+  .datebtn{appearance:none;border:1px solid var(--line);background:var(--paper-2);color:var(--ink-60);
+    width:34px;height:34px;border-radius:10px;font-size:16px;line-height:1;cursor:pointer}
+  .datebtn:active{background:#EFE9E4}
+  #dateLabel{font-size:19px;font-weight:700;letter-spacing:-.02em;min-width:96px;text-align:center}
+  .dday{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--paper-2);
+    background:var(--ink);padding:5px 9px;border-radius:999px;white-space:nowrap}
+  .dday.low{background:var(--rosin)}
+
+  .glasses{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;background:var(--paper-2);
+    border:1px solid var(--line);border-radius:var(--r);padding:16px 14px 12px;margin-bottom:12px}
+  .glass{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .tube{position:relative;width:100%;height:132px;border-radius:10px;background:#F1ECE8;
+    border:1px solid var(--line);overflow:hidden}
+  .fill{position:absolute;left:0;right:0;bottom:0;height:0%;transition:height .38s cubic-bezier(.32,.72,.3,1)}
+  .g-p .fill{background:linear-gradient(180deg,#94789B,var(--plum))}
+  .g-f .fill{background:linear-gradient(180deg,#D19C68,var(--rosin))}
+  .g-c .fill{background:linear-gradient(180deg,#7DA8A1,var(--sage))}
+  .over .fill{background:linear-gradient(180deg,#D4808A,var(--rose))!important}
+  .glabel{font-size:12px;color:var(--ink-60);font-weight:600}
+  .gnum{font-size:15px;font-weight:700;letter-spacing:-.02em}
+  .gnum small{font-size:11px;font-weight:600;color:var(--ink-30)}
+  .gleft{font-size:11px;color:var(--ink-60);font-weight:600}
+  .gleft.neg{color:var(--rose)}
+  .kcal{display:flex;align-items:baseline;justify-content:center;gap:6px;padding:11px 0 2px;
+    border-top:1px solid var(--line);margin-top:2px;grid-column:1/-1}
+  .kcal b{font-size:27px;font-weight:800;letter-spacing:-.03em}
+  .kcal span{font-size:13px;color:var(--ink-60)}
+
+  .h2row{display:flex;align-items:center;justify-content:space-between;margin:20px 0 9px;gap:8px}
+  h2{font-size:12px;font-weight:700;letter-spacing:.09em;color:var(--ink-30);margin:0;text-transform:uppercase}
+  .mini{appearance:none;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:700;
+    background:transparent;border:1px solid var(--line);color:var(--ink-60);
+    padding:5px 10px;border-radius:999px;min-height:30px}
+  .mini.on{background:var(--plum);border-color:var(--plum);color:#fff}
+  .mini.warn.on{background:var(--rose);border-color:var(--rose)}
+
+  .meals{display:grid;gap:8px}
+  .meal{appearance:none;text-align:left;cursor:pointer;background:var(--paper-2);border:1px solid var(--line);
+    border-radius:var(--r);padding:13px 15px;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;color:var(--ink);font-family:inherit;font-size:15px;min-height:52px;width:100%}
+  .meal:active{background:#EFE9E4;transform:scale(.99)}
+  .meal .mt{font-weight:700;letter-spacing:-.01em}
+  .meal .md{font-size:11.5px;color:var(--ink-60);margin-top:2px;line-height:1.3}
+  .meal .mk{font-size:12px;color:var(--ink-30);font-weight:700;white-space:nowrap}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{appearance:none;cursor:pointer;font-family:inherit;background:var(--paper-2);
+    border:1px solid var(--line);color:var(--ink);padding:9px 12px;border-radius:999px;
+    font-size:13.5px;min-height:40px}
+  .chip:active{background:var(--ink);color:var(--paper-2);border-color:var(--ink)}
+  .chip em{font-style:normal;color:var(--ink-30);font-size:11.5px;margin-left:3px}
+  .chip.mine{border-color:#CDBFD2;background:#F8F4F9}
+  .chip.del{border-color:var(--rose);background:#FBF1F1;color:var(--rose)}
+  .chip.del::after{content:" ×";font-weight:800}
+
+  .panel{border:1px solid var(--line);background:var(--paper-2);border-radius:var(--r);
+    padding:14px;margin-top:2px;display:none}
+  .panel.open{display:block}
+  .fl{display:block;font-size:11.5px;font-weight:700;color:var(--ink-60);margin:0 0 5px}
+  .inp{width:100%;font-family:inherit;font-size:16px;padding:10px 11px;border:1px solid var(--line);
+    border-radius:10px;background:var(--paper);color:var(--ink);min-height:44px}
+  .inp:focus{outline:2px solid var(--plum);outline-offset:1px;border-color:var(--plum)}
+  .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:11px}
+  .g4 .inp{text-align:center;padding:10px 4px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px;align-items:end}
+  .preview{border:1px dashed var(--line);border-radius:10px;min-height:44px;display:flex;
+    align-items:center;justify-content:center;color:var(--ink-60);font-size:12.5px;text-align:center;padding:6px}
+  .check{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13.5px;color:var(--ink-60)}
+  .check input{width:21px;height:21px;accent-color:var(--plum);flex:none}
+  .go{appearance:none;cursor:pointer;font-family:inherit;width:100%;margin-top:13px;min-height:48px;
+    background:var(--ink);color:var(--paper-2);border:none;border-radius:12px;font-size:15px;font-weight:700}
+  .go:active{background:#463A44}
+  .hint{font-size:11px;color:var(--ink-30);margin-top:10px;line-height:1.6}
+
+  .log{border:1px solid var(--line);border-radius:var(--r);background:var(--paper-2);overflow:hidden}
+  .row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row .nm{flex:1;font-size:14.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .qt{font-size:12px;color:var(--ink-60);font-weight:700;white-space:nowrap}
+  .row .kc{font-size:12px;color:var(--ink-30);width:50px;text-align:right;white-space:nowrap}
+  .step{appearance:none;border:1px solid var(--line);background:var(--paper);color:var(--ink);
+    width:32px;height:32px;border-radius:9px;font-size:17px;line-height:1;cursor:pointer;flex:none}
+  .step:active{background:#EFE9E4}
+  .empty{padding:26px 16px;text-align:center;color:var(--ink-30);font-size:13.5px;line-height:1.6}
+
+  .tools{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .tool{appearance:none;cursor:pointer;font-family:inherit;font-size:12.5px;background:transparent;
+    border:1px solid var(--line);color:var(--ink-60);padding:9px 13px;border-radius:999px;min-height:38px}
+  .tool:active{background:#EFE9E4}
+  .tool.on{background:var(--rosin);border-color:var(--rosin);color:#fff;font-weight:700}
+
+  .foot{margin-top:18px;font-size:11.5px;color:var(--ink-30);line-height:1.65}
+  .warnbox{margin-top:12px;border-left:3px solid var(--rose);background:#FBF1F1;padding:10px 12px;
+    border-radius:8px;font-size:12px;color:#7E3742;line-height:1.55}
+  :focus-visible{outline:2px solid var(--plum);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="dateline">
+      <button class="datebtn" id="prev" aria-label="이전 날">‹</button>
+      <div id="dateLabel" class="num">—</div>
+      <button class="datebtn" id="next" aria-label="다음 날">›</button>
+    </div>
+    <div class="dday num" id="dday">—</div>
+  </header>
+
+  <div class="glasses">
+    <div class="glass g-p">
+      <div class="tube"><div class="fill" id="fp"></div></div>
+      <div class="glabel">단백질</div>
+      <div class="gnum num" id="np">0<small>/105g</small></div>
+      <div class="gleft num" id="lp">105g 남음</div>
+    </div>
+    <div class="glass g-f">
+      <div class="tube"><div class="fill" id="ff"></div></div>
+      <div class="glabel">지방</div>
+      <div class="gnum num" id="nf">0<small>/45g</small></div>
+      <div class="gleft num" id="lf">45g 남음</div>
+    </div>
+    <div class="glass g-c">
+      <div class="tube"><div class="fill" id="fc"></div></div>
+      <div class="glabel">탄수화물</div>
+      <div class="gnum num" id="nc">0<small>/118g</small></div>
+      <div class="gleft num" id="lc">118g 남음</div>
+    </div>
+    <div class="kcal"><b class="num" id="kc">0</b><span class="num" id="kcT">/ 1,300 kcal</span></div>
+  </div>
+
+  <div id="warn"></div>
+
+  <div class="h2row"><h2>한 번에 담기</h2></div>
+  <div class="meals" id="meals"></div>
+
+  <div class="h2row">
+    <h2>직접 입력</h2>
+    <button class="mini" id="toggleAdd">열기</button>
+  </div>
+  <div class="panel" id="panel">
+    <label class="fl" for="cName">이름</label>
+    <input class="inp" id="cName" type="text" placeholder="예: 김밥 한 줄, 편의점 샐러드" autocomplete="off">
+
+    <div class="g4">
+      <div><label class="fl" for="cK">열량</label><input class="inp num" id="cK" type="text" inputmode="decimal" placeholder="kcal"></div>
+      <div><label class="fl" for="cP">단백질</label><input class="inp num" id="cP" type="text" inputmode="decimal" placeholder="g"></div>
+      <div><label class="fl" for="cF">지방</label><input class="inp num" id="cF" type="text" inputmode="decimal" placeholder="g"></div>
+      <div><label class="fl" for="cC">탄수</label><input class="inp num" id="cC" type="text" inputmode="decimal" placeholder="g"></div>
+    </div>
+
+    <div class="check">
+      <input type="checkbox" id="per100">
+      <label for="per100">위 값이 <b>100g당</b> 기준이에요</label>
+    </div>
+    <div class="g2" id="gramWrap" style="display:none">
+      <div><label class="fl" for="cG">실제 먹은 양 (g)</label><input class="inp num" id="cG" type="text" inputmode="decimal" placeholder="예: 250"></div>
+      <div class="preview num" id="preview">먹은 양을 넣으면 계산돼요</div>
+    </div>
+
+    <div class="check">
+      <input type="checkbox" id="keepIt">
+      <label for="keepIt">다음에도 쓰게 저장해두기</label>
+    </div>
+
+    <button class="go" id="addCustom">담기</button>
+    <div class="hint">
+      포장지 뒷면 영양정보를 그대로 옮기시면 됩니다. 100g당으로 적힌 제품은 위 체크를 켜고 먹은 양만 넣으면 자동 계산됩니다.<br>
+      외식이라 정확히 모르겠으면 비슷한 메뉴로 대충 넣으세요. 아예 안 적는 것보다 훨씬 낫습니다.
+    </div>
+  </div>
+
+  <div class="h2row" id="mineHead" style="display:none">
+    <h2>내가 저장한 것</h2>
+    <button class="mini warn" id="editMine">지우기</button>
+  </div>
+  <div class="chips" id="mine"></div>
+
+  <div class="h2row"><h2>재료로 담기</h2></div>
+  <div class="chips" id="chips"></div>
+
+  <div class="h2row"><h2>오늘 먹은 것</h2></div>
+  <div class="log" id="log"></div>
+
+  <div class="tools">
+    <button class="tool" id="lowcarb">저탄수 모드</button>
+    <button class="tool" id="today">오늘로</button>
+    <button class="tool" id="reset">오늘 비우기</button>
+  </div>
+
+  <div class="foot">
+    목표는 하루 1,300 kcal · 단백질 105g · 지방 45g · 탄수화물 118g입니다.<br>
+    <b>단백질과 지방은 채우는 것</b>, 탄수화물은 넘지 않는 것으로 보시면 쉽습니다.<br>
+    8/18~8/19에는 저탄수 모드가 자동으로 켜집니다 (탄수화물 59g).
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* 저장: 공유 링크(window.storage) → 브라우저(localStorage) → 메모리 순으로 자동 선택 */
+  var mem={};
+  var hasWS = (typeof window!=="undefined" && window.storage && typeof window.storage.get==="function");
+  var store={
+    get:function(k){
+      if(hasWS){
+        return window.storage.get(k).then(function(r){ return r&&r.value?r.value:null; })
+               .catch(function(){ return null; });
+      }
+      var v=null;
+      try{ v=localStorage.getItem(k); }catch(e){ v=null; }
+      if(v===null && (k in mem)) v=mem[k];
+      return Promise.resolve(v);
+    },
+    set:function(k,v){
+      mem[k]=v;
+      if(hasWS){ return window.storage.set(k,v).catch(function(){}); }
+      try{ localStorage.setItem(k,v); }catch(e){}
+      return Promise.resolve();
+    }
+  };
+  function readJSON(k,d){
+    return store.get(k).then(function(r){
+      if(!r) return d;
+      try{ return JSON.parse(r)||d; }catch(e){ return d; }
+    });
+  }
+
+  var GOAL={kcal:1300,p:105,f:45,c:118}, LOWCARB_C=59;
+  var LOW_DAYS=["2026-08-18","2026-08-19"], BEACH=new Date(2026,7,20);
+
+  var FOODS={
+    egg:{n:"계란",u:"1개",k:70,p:6.3,f:5,c:0.4},
+    white:{n:"계란 흰자",u:"1개",k:17,p:3.9,f:0,c:0.2},
+    chicken:{n:"닭가슴살",u:"50g",k:54,p:11.5,f:0.8,c:0},
+    rice:{n:"밥",u:"50g",k:75,p:1.3,f:0.2,c:16.5},
+    pork:{n:"제육(앞다리)",u:"50g",k:95,p:10,f:6,c:0},
+    beef:{n:"등심",u:"50g",k:120,p:10,f:8.5,c:0},
+    wpi:{n:"WPI",u:"1스쿱",k:125,p:25,f:1.5,c:2},
+    oil:{n:"올리브유",u:"5g",k:45,p:0,f:5,c:0},
+    veg:{n:"채소",u:"100g",k:25,p:1.5,f:0.2,c:5},
+    yogurt:{n:"그릭요거트",u:"100g",k:60,p:10,f:0.4,c:4},
+    tofu:{n:"두부",u:"100g",k:80,p:8,f:4.5,c:2},
+    milk:{n:"우유",u:"100ml",k:60,p:3.3,f:3.3,c:4.8},
+    nuts:{n:"견과",u:"10g",k:60,p:2,f:5.5,c:2},
+    banana:{n:"바나나",u:"1개",k:105,p:1.3,f:0.4,c:27},
+    sweetp:{n:"고구마",u:"50g",k:65,p:0.8,f:0.1,c:15},
+    apple:{n:"사과",u:"1/2개",k:50,p:0.3,f:0.2,c:13},
+    tomato:{n:"방울토마토",u:"100g",k:18,p:0.9,f:0.2,c:4},
+    avocado:{n:"아보카도",u:"50g",k:80,p:1,f:7.5,c:4}
+  };
+
+  var MEALS=[
+    {t:"아침", d:"계란 3개 + 흰자 1개", items:{egg:3,white:1}},
+    {t:"점심 도시락", d:"닭가슴살 130g + 밥 150g + 채소", items:{chicken:2.6,rice:3,veg:1}},
+    {t:"저녁 (제육)", d:"제육 120g + 밥 150g + 채소 + 올리브유 10g", items:{pork:2.4,rice:3,veg:1,oil:2}},
+    {t:"저녁 (등심)", d:"등심 100g + 밥 150g + 채소 + 견과 15g", items:{beef:2,rice:3,veg:1,nuts:1.5}},
+    {t:"WPI 보충", d:"1스쿱", items:{wpi:1}}
+  ];
+
+  var myFoods={};
+  var cur=new Date(), day={}, dayCustom={}, forceLow=false, delMode=false;
+
+  function key(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function loadDay(){
+    var d=key(cur);
+    return Promise.all([readJSON("cut2w:"+d,{}), readJSON("cut2w:custom:"+d,{})])
+      .then(function(res){ day=res[0]||{}; dayCustom=res[1]||{}; });
+  }
+  function saveDay(){ store.set("cut2w:"+key(cur),JSON.stringify(day)); store.set("cut2w:custom:"+key(cur),JSON.stringify(dayCustom)); }
+  function saveMine(){ store.set("cut2w:myfoods",JSON.stringify(myFoods)); }
+  function food(id){ return FOODS[id]||myFoods[id]||dayCustom[id]||null; }
+
+  function isLow(){ return forceLow||LOW_DAYS.indexOf(key(cur))>=0; }
+  function carbGoal(){ return isLow()?LOWCARB_C:GOAL.c; }
+  function kcalGoal(){ return isLow()?Math.round(GOAL.p*4+GOAL.f*9+LOWCARB_C*4):GOAL.kcal; }
+
+  function totals(){
+    var t={k:0,p:0,f:0,c:0};
+    for(var id in day){ var q=day[id],F=food(id); if(!F||!q) continue;
+      t.k+=F.k*q; t.p+=F.p*q; t.f+=F.f*q; t.c+=F.c*q; }
+    return t;
+  }
+
+  var DAYS=["일","월","화","수","목","금","토"];
+
+  function setGlass(px,val,goal,unit){
+    var pct=goal>0?Math.min(val/goal*100,100):0, over=val>goal+0.5;
+    var fill=document.getElementById("f"+px);
+    fill.style.height=pct+"%";
+    fill.parentNode.parentNode.classList.toggle("over",over);
+    document.getElementById("n"+px).innerHTML=Math.round(val)+"<small>/"+goal+unit+"</small>";
+    var left=goal-val, el=document.getElementById("l"+px);
+    el.textContent=left>=0?Math.round(left)+unit+" 남음":Math.round(-left)+unit+" 초과";
+    el.classList.toggle("neg",left<0);
+  }
+
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(m){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]; }); }
+
+  function renderChips(){
+    var ch="";
+    for(var id in FOODS){ ch+='<button class="chip" data-food="'+id+'">'+FOODS[id].n+'<em>'+FOODS[id].u+'</em></button>'; }
+    document.getElementById("chips").innerHTML=ch;
+
+    var ids=Object.keys(myFoods), mh="";
+    document.getElementById("mineHead").style.display=ids.length?"flex":"none";
+    ids.forEach(function(id){
+      var F=myFoods[id];
+      mh+='<button class="chip mine'+(delMode?" del":"")+'" data-'+(delMode?"delmine":"food")+'="'+id+'">'+
+          esc(F.n)+'<em>'+esc(F.u)+'</em></button>';
+    });
+    document.getElementById("mine").innerHTML=mh;
+    var b=document.getElementById("editMine");
+    b.classList.toggle("on",delMode); b.textContent=delMode?"완료":"지우기";
+  }
+
+  function renderLog(){
+    var log=document.getElementById("log"), ids=[];
+    for(var id in day){ if(day[id]>0&&food(id)) ids.push(id); }
+    if(!ids.length){ log.innerHTML='<div class="empty">아직 담은 게 없어요.<br>위에서 끼니를 눌러 담아보세요.</div>'; return; }
+    var h="";
+    ids.forEach(function(id){
+      var F=food(id), q=day[id], qty=Math.round(q*100)/100;
+      h+='<div class="row">'+
+         '<button class="step" data-minus="'+id+'" aria-label="줄이기">−</button>'+
+         '<div class="nm">'+esc(F.n)+'</div>'+
+         '<div class="qt num">'+qty+' × '+esc(F.u)+'</div>'+
+         '<div class="kc num">'+Math.round(F.k*q)+'</div>'+
+         '<button class="step" data-plus="'+id+'" aria-label="늘리기">+</button></div>';
+    });
+    log.innerHTML=h;
+  }
+
+  function renderWarn(){
+    var t=totals(), msgs=[];
+    if(t.p>0&&t.k>=kcalGoal()*0.9&&t.p<GOAL.p*0.75)
+      msgs.push("열량은 거의 찼는데 단백질이 부족해요. 남은 끼니는 닭가슴살이나 WPI 쪽으로 채우세요.");
+    if(t.k>=kcalGoal()*0.85&&t.f<GOAL.f*0.7)
+      msgs.push("지방이 하한에 못 미쳐요. 올리브유나 견과로 채워야 합니다 — 여기는 줄이면 안 되는 자리예요.");
+    if(t.k>kcalGoal()+250)
+      msgs.push("오늘은 목표를 꽤 넘었어요. 내일 굶어서 메우지 말고 그냥 평소대로 하세요.");
+    document.getElementById("warn").innerHTML=msgs.length?'<div class="warnbox">'+msgs.join("<br><br>")+'</div>':"";
+  }
+
+  function render(){
+    document.getElementById("dateLabel").textContent=(cur.getMonth()+1)+"월 "+cur.getDate()+"일 ("+DAYS[cur.getDay()]+")";
+    var diff=Math.round((BEACH-new Date(cur.getFullYear(),cur.getMonth(),cur.getDate()))/86400000);
+    var dd=document.getElementById("dday");
+    dd.textContent=diff>0?("D-"+diff):(diff===0?"D-DAY":"D+"+(-diff));
+    dd.classList.toggle("low",isLow());
+    var t=totals();
+    setGlass("p",t.p,GOAL.p,"g"); setGlass("f",t.f,GOAL.f,"g"); setGlass("c",t.c,carbGoal(),"g");
+    document.getElementById("kc").textContent=Math.round(t.k).toLocaleString();
+    document.getElementById("kcT").textContent="/ "+kcalGoal().toLocaleString()+" kcal"+(isLow()?" · 저탄수":"");
+    document.getElementById("lowcarb").classList.toggle("on",isLow());
+    renderChips(); renderLog(); renderWarn();
+  }
+
+  function add(id,q){
+    day[id]=Math.max(0,Math.round(((day[id]||0)+q)*100)/100);
+    if(day[id]===0){ delete day[id]; if(dayCustom[id]) delete dayCustom[id]; }
+    saveDay(); render();
+  }
+
+  var mh="";
+  MEALS.forEach(function(m,i){
+    var k=0; for(var id in m.items){ k+=FOODS[id].k*m.items[id]; }
+    mh+='<button class="meal" data-meal="'+i+'"><div><div class="mt">'+m.t+'</div>'+
+        '<div class="md">'+m.d+'</div></div><div class="mk num">'+Math.round(k)+' kcal</div></button>';
+  });
+  document.getElementById("meals").innerHTML=mh;
+
+  var P=document.getElementById("panel");
+  function num(id){ var v=parseFloat(String(document.getElementById(id).value||"").replace(/[^0-9.]/g,"")); return isFinite(v)&&v>0?v:0; }
+  function r1(x){ return Math.round(x*10)/10; }
+
+  function updatePreview(){
+    var on=document.getElementById("per100").checked;
+    document.getElementById("gramWrap").style.display=on?"grid":"none";
+    if(!on) return;
+    var g=num("cG");
+    document.getElementById("preview").textContent = g>0
+      ? Math.round(num("cK")*g/100)+" kcal · 단 "+r1(num("cP")*g/100)+" 지 "+r1(num("cF")*g/100)+" 탄 "+r1(num("cC")*g/100)
+      : "먹은 양을 넣으면 계산돼요";
+  }
+  ["per100","cG","cK","cP","cF","cC"].forEach(function(id){
+    var el=document.getElementById(id);
+    el.addEventListener("input",updatePreview); el.addEventListener("change",updatePreview);
+  });
+
+  document.getElementById("toggleAdd").onclick=function(){
+    var open=P.classList.toggle("open");
+    this.textContent=open?"닫기":"열기"; this.classList.toggle("on",open);
+    if(open) document.getElementById("cName").focus();
+  };
+
+  document.getElementById("addCustom").onclick=function(){
+    var name=String(document.getElementById("cName").value||"").trim();
+    if(!name){ document.getElementById("cName").focus(); return; }
+    var ratio=1, unit="1회";
+    if(document.getElementById("per100").checked){
+      var g=num("cG");
+      if(g<=0){ document.getElementById("cG").focus(); return; }
+      ratio=g/100; unit=g+"g";
+    }
+    var k=num("cK")*ratio, p=num("cP")*ratio, f=num("cF")*ratio, c=num("cC")*ratio;
+    if(k<=0&&p<=0&&f<=0&&c<=0){ document.getElementById("cK").focus(); return; }
+    var def={n:name,u:unit,k:r1(k),p:r1(p),f:r1(f),c:r1(c)};
+    var id="c"+Date.now()+Math.floor(Math.random()*1000);
+    if(document.getElementById("keepIt").checked){ myFoods[id]=def; saveMine(); }
+    else { dayCustom[id]=def; }
+    day[id]=(day[id]||0)+1;
+    saveDay();
+    ["cName","cK","cP","cF","cC","cG"].forEach(function(x){ document.getElementById(x).value=""; });
+    document.getElementById("per100").checked=false;
+    document.getElementById("keepIt").checked=false;
+    updatePreview();
+    P.classList.remove("open");
+    var tg=document.getElementById("toggleAdd"); tg.textContent="열기"; tg.classList.remove("on");
+    render();
+  };
+
+  document.getElementById("editMine").onclick=function(){ delMode=!delMode; renderChips(); };
+
+  document.addEventListener("click",function(e){
+    var el=e.target.closest?e.target.closest("[data-meal],[data-food],[data-plus],[data-minus],[data-delmine]"):null;
+    if(!el) return;
+    if(el.hasAttribute("data-meal")){
+      var m=MEALS[+el.getAttribute("data-meal")];
+      for(var id in m.items){ day[id]=Math.round(((day[id]||0)+m.items[id])*100)/100; }
+      saveDay(); render();
+    }
+    else if(el.hasAttribute("data-food")) add(el.getAttribute("data-food"),1);
+    else if(el.hasAttribute("data-plus")) add(el.getAttribute("data-plus"),1);
+    else if(el.hasAttribute("data-minus")) add(el.getAttribute("data-minus"),-1);
+    else if(el.hasAttribute("data-delmine")){
+      var mid=el.getAttribute("data-delmine");
+      if(myFoods[mid]&&confirm("'"+myFoods[mid].n+"'을(를) 목록에서 지울까요?")){ delete myFoods[mid]; saveMine(); renderChips(); }
+    }
+  });
+
+  document.getElementById("prev").onclick=function(){ cur.setDate(cur.getDate()-1); forceLow=false; loadDay().then(render); };
+  document.getElementById("next").onclick=function(){ cur.setDate(cur.getDate()+1); forceLow=false; loadDay().then(render); };
+  document.getElementById("today").onclick=function(){ cur=new Date(); forceLow=false; loadDay().then(render); };
+  document.getElementById("lowcarb").onclick=function(){ forceLow=!isLow(); render(); };
+  document.getElementById("reset").onclick=function(){
+    if(confirm("오늘 담은 걸 모두 지울까요?")){ day={}; dayCustom={}; saveDay(); render(); }
+  };
+
+  updatePreview();
+  readJSON("cut2w:myfoods",{}).then(function(mf){ myFoods=mf||{}; return loadDay(); }).then(render);
+})();
+</script>
+</div>
+</body>
+</html>
