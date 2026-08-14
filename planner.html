@@ -176,10 +176,10 @@
     </div>
     <div id="warn"></div>
 
-    <div class="card hide" id="actCard">
+    <div class="card" id="actCard">
       <div style="display:flex;gap:8px;align-items:flex-end">
         <div style="flex:1"><label class="fl" for="actIn">오늘 활동 칼로리 (워치)</label>
-          <input class="inp num" id="actIn" type="text" inputmode="numeric" placeholder="kcal"></div>
+          <input class="inp num" id="actIn" type="text" inputmode="numeric" placeholder="kcal · 비워두면 평소 기준"></div>
         <button class="go" id="actSave" style="width:auto;margin:0;padding:0 18px;min-height:44px">반영</button>
       </div>
       <div class="hint" id="actMsg"></div>
@@ -266,10 +266,11 @@
       <h2 style="margin-bottom:10px">2. 활동량</h2>
       <label class="fl" for="sMode">계산 방식</label>
       <select class="inp" id="sMode">
+        <option value="watch">워치 연동 — 활동 칼로리 입력 (권장)</option>
         <option value="simple" selected>간편 — 활동 수준 고르기</option>
-        <option value="watch">워치 연동 — 활동 칼로리 입력</option>
       </select>
       <div class="fld" id="wrapAct"><label class="fl" for="sAct">평소 활동 수준</label>
+        <div class="hint" style="margin:0 0 6px">활동계수는 실제보다 높게 나오는 경우가 많아, 앉아서 생활하는 수준을 넘는 활동분은 <b>70%만</b> 반영합니다.</div>
         <select class="inp" id="sAct">
           <option value="1.2">거의 앉아서 생활 (운동 안 함)</option>
           <option value="1.375" selected>가벼운 활동 (주 1-3회 운동)</option>
@@ -426,15 +427,23 @@ function computePlan(p){
   var W=p.weight,F=p.fat,SMM=p.smm,FFM=W-F,bf=F/W*100;
   var bmr=Math.round(370+21.6*FFM);
   var watch=(p.actMode==="watch");
-  var avgAct=Math.max(0,p.avgActive||0), WATCH_ADJ=0.8;
-  var tdee = watch ? Math.round(bmr*1.15+avgAct*WATCH_ADJ) : Math.round(bmr*p.act);
-  var exK = watch ? Math.round(avgAct*WATCH_ADJ) : Math.max(0,Math.round(tdee-bmr*1.25));
+  var avgAct=Math.max(0,p.avgActive||0), WATCH_ADJ=0.8, ACT_ADJ=0.7;
+  var tdee, exEE;
+  if(watch){
+    tdee=Math.round(bmr+avgAct*WATCH_ADJ);
+    exEE=Math.max(0,Math.round(avgAct*WATCH_ADJ-bmr*0.2));
+  } else {
+    var extra=Math.round(bmr*Math.max(0,p.act-1.2)*ACT_ADJ);
+    tdee=Math.round(bmr*1.2+extra);
+    exEE=extra;
+  }
+  var exK=Math.max(0,tdee-bmr);
   var lean=p.sex==="F"?bf<25:bf<18, veryLean=p.sex==="F"?bf<20:bf<12;
-  var eaFloor=Math.round(30*FFM+exK), absFloor=(p.sex==="F"?1200:1500);
+  var eaFloor=Math.round(30*FFM+exEE), absFloor=(p.sex==="F"?1200:1500);
   var floor=Math.max(absFloor, lean?eaFloor:0);
   var weeks=Math.max(1,p.weeks||12);
   var o={bmr:bmr,tdee:tdee,ffm:n1(FFM),bf:n1(bf),exK:exK,notes:[],mode:p.goal,weeks:weeks,start:p.start||today(),
-    actMode:(p.actMode||'simple'),avgActive:avgAct,watchAdj:WATCH_ADJ};
+    actMode:(p.actMode||'simple'),avgActive:avgAct,watchAdj:WATCH_ADJ,actAdj:ACT_ADJ,exEE:exEE};
 
   if(p.goal==="fat"){
     var tbf=p.tbf>0?p.tbf:Math.max(p.sex==="F"?18:10,bf-5);
@@ -489,12 +498,13 @@ function computePlan(p){
 
   o.p=pg; o.f=fg; o.c=Math.max(0,cg); o.fatFloor=fFloor;
   o.kcal=o.p*4+o.f*9+o.c*4;
-  o.ea=Math.round((o.kcal-exK)/FFM);
+  o.ea=Math.round((o.kcal-exEE)/FFM);
   o.meals=o.p>=140?5:o.p>=100?4:3; o.perMeal=Math.round(o.p/o.meals);
   if(lean&&o.ea<30) o.notes.push(["bad","에너지 가용성이 "+o.ea+" kcal/kg FFM으로 기준선(30) 아래입니다. 몇 주 이상 지속되면 호르몬·뼈·면역·기분에 영향이 갑니다."]);
   else if(lean&&p.sex==="F"&&o.ea<35&&p.goal==="fat") o.notes.push(["","에너지 가용성이 "+o.ea+" kcal/kg FFM입니다. 여성은 35 부근 아래에서 생리 주기 변화가 보고되므로, 변화가 생기면 즉시 섭취를 올리세요."]);
   else if(!lean&&o.ea<30&&p.goal==="fat") o.notes.push(["","에너지 가용성 지표는 "+o.ea+"로 낮게 나오지만, 이 기준선(30)은 마른 운동선수를 대상으로 검증된 값입니다. 체지방이 넉넉할 때는 그 지방이 연료로 쓰이므로 같은 기준을 그대로 적용하지 않습니다. 대신 적자를 유지 열량의 25% 이내로 제한했습니다."]);
-  if(watch) o.notes.push(["","워치 활동 칼로리를 쓰고 있습니다. 평균 "+avgAct+" kcal 중 <b>"+Math.round(avgAct*WATCH_ADJ)+" kcal(80%)</b>만 반영했습니다. 오늘 탭에서 그날의 활동 칼로리를 넣으면 <b>평균보다 많이 움직인 만큼 탄수화물이 늘어납니다.</b>"]);
+  if(watch) o.notes.push(["good","워치 실측을 쓰고 있습니다. 평균 "+avgAct+" kcal 중 <b>"+Math.round(avgAct*WATCH_ADJ)+" kcal(80%)</b>를 반영했습니다. 드롭다운 추정보다 정확한 방식입니다."]);
+  else o.notes.push(["","활동 수준 드롭다운으로 계산했습니다. 이 계수들은 <b>과대추정 경향</b>이 있어, 이 앱은 앉아서 생활하는 수준(1.2)을 넘는 활동분만 <b>70%로 낮춰</b> 반영합니다. 워치를 쓰신다면 설정에서 <b>워치 연동</b>으로 바꾸는 쪽이 더 정확합니다."]);
   if(o.c<Math.round(2*W)) o.notes.push(["","탄수화물이 낮은 편입니다. 훈련 강도가 떨어지면 지방을 하한까지 낮추고 그만큼 탄수화물로 옮기세요."]);
   return o;
 }
@@ -516,14 +526,15 @@ function planFor(dateStr){
 function latestPlan(){ return plans.length?plans[plans.length-1]:null; }
 function effectivePlan(ds){
   var pl=planFor(ds); if(!pl) return null;
-  if(pl.actMode!=="watch") return pl;
   var a=actives[ds];
   if(!(a>0)) return pl;
-  var delta=Math.round((a-(pl.avgActive||0))*(pl.watchAdj||0.8));
+  var baseAct=Math.max(0,pl.exK||0);
+  var delta=Math.round(a*(pl.watchAdj||0.8)-baseAct);
+  if(delta<0) delta=Math.max(delta,-Math.round(pl.kcal*0.15));
   var e={},k; for(k in pl) e[k]=pl[k];
   e.c=Math.max(0,pl.c+Math.round(delta/4));
   e.kcal=e.p*4+e.f*9+e.c*4;
-  e.adj=e.kcal-pl.kcal; e.baseKcal=pl.kcal; e.todayAct=a;
+  e.adj=e.kcal-pl.kcal; e.baseKcal=pl.kcal; e.todayAct=a; e.baseAct=baseAct;
   return e;
 }
 
@@ -653,17 +664,14 @@ function renderToday(){
     document.getElementById("kcT").textContent="/ 설정에서 목표를 먼저 정하세요";
   }
   document.getElementById("kc").textContent=Math.round(t.k).toLocaleString();
-  var lat=latestPlan(), isW=!!(lat&&lat.actMode==="watch");
-  document.getElementById("actCard").classList.toggle("hide",!isW);
-  if(isW){
-    var a=actives[ds], msg;
-    document.getElementById("actIn").value=(a>0)?a:"";
-    if(!(a>0)) msg="워치의 활동 칼로리를 넣으면 오늘 목표가 조정됩니다. 평소 평균은 "+(lat.avgActive||0)+" kcal입니다.";
-    else if(pl.adj>0) msg="평소보다 많이 움직이셨어요. 오늘은 <b>+"+pl.adj+" kcal</b> (탄수화물 +"+Math.round(pl.adj/4)+"g) 더 드셔도 됩니다.";
-    else if(pl.adj<0) msg="평소보다 덜 움직이셨어요. 오늘 목표는 <b>"+pl.adj+" kcal</b> 조정됐습니다.";
-    else msg="평소와 같은 활동량입니다.";
-    document.getElementById("actMsg").innerHTML=msg;
-  }
+  var a=actives[ds], msg;
+  document.getElementById("actIn").value=(a>0)?a:"";
+  if(!pl) msg="설정에서 목표를 먼저 정하시면 이 칸이 작동합니다.";
+  else if(!(a>0)) msg="애플워치 <b>움직임(Active)</b> 또는 갤럭시워치 <b>활동 칼로리</b>를 넣으면 오늘 목표가 조정됩니다. 이 계획이 이미 잡고 있는 평소 활동량은 <b>"+Math.round(pl.exK||0)+" kcal</b>입니다. (총 소모량은 넣지 마세요)";
+  else if(pl.adj>0) msg="평소보다 많이 움직이셨어요. 오늘은 <b>+"+pl.adj+" kcal</b> (탄수화물 +"+Math.round(pl.adj/4)+"g) 더 드셔도 됩니다. <span style=\"color:var(--ink-30)\">"+a+" × 0.8 = "+Math.round(a*0.8)+" vs 평소 "+Math.round(pl.baseAct)+"</span>";
+  else if(pl.adj<0) msg="평소보다 덜 움직이셨어요. 오늘 목표가 <b>"+pl.adj+" kcal</b> 조정됐습니다. <span style=\"color:var(--ink-30)\">"+a+" × 0.8 = "+Math.round(a*0.8)+" vs 평소 "+Math.round(pl.baseAct)+"</span>";
+  else msg="평소와 같은 활동량입니다.";
+  document.getElementById("actMsg").innerHTML=msg;
   renderSets(); renderChips(); renderLog(); renderWarn(pl);
 }
 function ddayText(){
@@ -690,7 +698,7 @@ function renderResult(){
   h+='<div class="card"><table class="kv">'+
     '<tr><td>제지방량</td><td>'+pl.ffm+' kg</td></tr><tr><td>현재 체지방률</td><td>'+pl.bf+' %</td></tr>'+
     '<tr><td>기초대사량</td><td>'+pl.bmr.toLocaleString()+' kcal</td></tr>'+
-    '<tr><td>유지 열량</td><td>'+pl.tdee.toLocaleString()+' kcal</td></tr>'+(pl.actMode==='watch'?'<tr><td>활동 칼로리 반영</td><td>'+pl.avgActive+' × 0.8 = '+Math.round(pl.avgActive*0.8)+' kcal</td></tr>':'')+
+    '<tr><td>유지 열량</td><td>'+pl.tdee.toLocaleString()+' kcal</td></tr>'+(pl.actMode==='watch'?'<tr><td>활동 칼로리 반영</td><td>'+pl.avgActive+' × 0.8 = '+Math.round(pl.avgActive*0.8)+' kcal</td></tr>':'<tr><td>활동분 (70% 반영)</td><td>'+Math.round(pl.exK||0)+' kcal</td></tr>')+
     '<tr><td>에너지 가용성</td><td>'+pl.ea+' kcal/kg FFM</td></tr>'+
     (pl.targetWeight?'<tr><td>목표 체중</td><td>'+pl.targetWeight+' kg</td></tr>':'')+
     (pl.rate?'<tr><td>변화 목표</td><td>'+(pl.mode==="fat"?"주 −":"월 +")+pl.rate+' kg ('+pl.ratePct+'%)</td></tr>':'')+
@@ -755,6 +763,9 @@ function renderSrc(){
     ["근육 증가 속도","한 달에 <b>체중의 0.5-1%</b> 정도가 상한이며, 경력이 길수록 느려집니다(이 앱은 1년 미만 1%, 1-3년 0.5%, 3년 이상 0.25%로 적용). 흑자를 크게 잡아도 속도는 빨라지지 않고 지방만 늘어나므로, 잉여 열량은 유지 열량의 8-15%로 제한합니다.",
      ["Helms ER, Aragon AA, Fitschen PJ. J Int Soc Sports Nutr. 2014;11:20",
       "Slater GJ, Dieter BP, Marsh DJ, et al. Front Nutr. 2019;6:131"]],
+    ["활동계수를 70%로 낮춰 쓰는 이유","흔히 쓰는 활동계수(1.2~1.725)는 <b>본인이 고르는 값</b>이라 실제보다 높게 잡히는 경우가 많습니다. 이중표지수(doubly labeled water) 연구들과 비교하면 자가보고 기반 추정은 총 에너지 소비를 과대평가하는 경향이 반복 관찰됩니다. 그래서 이 앱은 <b>앉아서 생활하는 수준(1.2)을 넘는 활동분만 70%로 할인</b>합니다. 기초 생활분은 그대로 두므로 지나치게 낮아지지 않습니다.<br><br>이 70%는 논문에서 나온 상수가 아니라 <b>보수적으로 시작하기 위한 안전 계수</b>입니다. 목표보다 빠르게 빠지면 체중 탭이 '더 드세요'라고 알려주니, 낮게 시작해서 올리는 편이 반대보다 안전합니다.",
+     ["Dhurandhar NV, et al. Int J Obes. 2015;39(7):1109-1113 — 에너지 소비 추정의 오차와 한계",
+      "Hall KD, et al. Am J Clin Nutr. 2012;95(4):989-994 — 체중 변화 예측 모델과 실제 섭취량 괴리"]],
     ["워치 활동 칼로리를 80%만 반영하는 이유","손목 착용 기기는 <b>심박수는 비교적 정확</b>하지만(오차 5% 안팎) <b>에너지 소모 추정은 오차가 큽니다.</b> 여러 검증 연구에서 20-30% 이상 빗나갔고 방향은 대체로 <b>과대평가</b>였습니다. 워치 숫자를 그대로 믿고 먹으면 감량이 멈추는 흔한 이유가 이것입니다. 그래서 이 앱은 입력값의 80%만 반영합니다. 2주간 체중이 계획보다 느리게 줄면 평균 활동 칼로리를 조금 낮춰 잡으세요.<br><br>또 워치의 <b>총 소모량</b>은 기초대사량이 포함된 값이라 넣으면 이중 계산됩니다. 반드시 <b>활동(Active) 칼로리</b>만 입력하세요.",
      ["Shcherbina A, et al. J Pers Med. 2017;7(2):3 — 7종 손목기기 검증: 심박 오차는 낮고 에너지 소모 오차는 큼",
       "Fuller D, et al. JMIR Mhealth Uhealth. 2020;8(9):e18694 — 소비자용 웨어러블 타당도 체계적 문헌고찰"]],
